@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+themis-pbft = {path = "/home/stefan/themis/themis-pbft"}
+themis-core = {path = "/home/stefan/themis/themis-core"}
+bytes = "1.10.1"
+serde = "1.0.218"
+rand = "0.8"
+tokio = { version = "1", features = ["full"] }
+
+themis-patch-pbft = {path = "/home/stefan/ThemisPatch/themis-patch-pbft"}
+themis-patch-core = {path = "/home/stefan/ThemisPatch/themis-patch-core"}
