@@ -13,3 +13,4 @@ tokio = { version = "1", features = ["full"] }
 
 themis-patch-pbft = {path = "/home/stefan/ThemisPatch/themis-patch-pbft"}
 themis-patch-core = {path = "/home/stefan/ThemisPatch/themis-patch-core"}
+futures-util = "0.3.31"

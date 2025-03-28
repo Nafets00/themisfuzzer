@@ -2,12 +2,12 @@ use std::thread::Thread;
 
 use bytes::Bytes;
 use context::{setup_pbft, PBFTContext};
-
 use rand::prelude::*;
 use themis_core::{app::{request, Request, Response}, net::{Message, Raw, Sequenced}, protocol::{Proposal, ProtocolTag}};
 use themis_pbft::messages::*;
 pub mod context;
 pub mod patch;
+pub mod comp;
 
 
 
@@ -228,12 +228,10 @@ async fn generate_random_response(buf: &[u8], pbft: &mut themis_pbft::PBFT, sequ
 
 
 
-pub async fn to_fuzz(buf: &[u8], sequence:u64, pbft_context: &mut PBFTContext, source:u64, destination:u64){
-    let mut rng = ThreadRng::default();
-   
-
-    let rndvar: u8 = rng.gen_range(0..11);
-    match rndvar {
+pub async fn to_fuzz(rnd_var: u64, buf: &[u8], sequence:u64, pbft_context: &mut PBFTContext, replica_context: &mut PBFTContext, source:u64, destination:u64){
+    //println!("rndvar: {}", rnd_var);
+    
+    match rnd_var {
         0 => generate_pre_prepare(buf, &mut pbft_context.pbft, sequence, source, destination).await,
         1 => generate_assign(buf, &mut pbft_context.pbft, sequence, source, destination).await,
         2 => generate_commit(buf, &mut pbft_context.pbft, sequence, source, destination).await,

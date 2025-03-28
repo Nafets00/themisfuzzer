@@ -14,22 +14,21 @@ pub async fn generate_pre_prepare(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT
     let bytes = Bytes::copy_from_slice(buf);
     let msg = PrePrepare::new(sequence, view, bytes);
     let res = Message::new(source,destination, msg).pack();
-    let cop = Message::new(source, destination,PrePrepare::new(sequence,view,Bytes::copy_from_slice(buf))).pack();
     
-   
-    
+    if sequence%2 == 0{
     match res {
-        Ok(message) => {
-            
-            let _ = pbft.on_message(message).await;
+            Ok(message) => {
+                
+                let _ = pbft.on_message(message).await;
+            }
+            Err(e) => {
+                eprintln!("Cannot pack message: {:?}", e); 
+                panic!("Error packing message: {:?}", e);
+            }
         }
-        Err(e) => {
-            eprintln!("Cannot pack message: {:?}", e); 
-            panic!("Error packing message: {:?}", e);
-        }
-    }
-
-    match cop {
+   }
+   else {
+    match res {
         Ok(message) => {
             let _ = replica.on_message(message).await;
         }
@@ -38,6 +37,8 @@ pub async fn generate_pre_prepare(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT
             panic!("Error packing message: {:?}", e);
         }
     }
+   }
+    
     
 }
 
@@ -239,13 +240,9 @@ async fn generate_random_response(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT
 
 
 
-pub async fn to_fuzz_patch(buf: &[u8], sequence:u64, pbft_context: &mut PBFTPatchContext, replica_context: &mut PBFTPatchContext, source:u64, destination:u64){
-    let mut rng = ThreadRng::default();
+pub async fn to_fuzz_patch(rnd_var:u64, buf: &[u8], sequence:u64, pbft_context: &mut PBFTPatchContext, replica_context: &mut PBFTPatchContext, source:u64, destination:u64){
     
- 
-    let rndvar: u8 = rng.gen_range(0..11);
-    
-    match rndvar {
+    match rnd_var {
         0 => generate_pre_prepare(buf, &mut pbft_context.pbft, &mut replica_context.pbft,sequence, source, destination,).await,
         1 => generate_assign(buf, &mut pbft_context.pbft, sequence, source, destination).await,
         2 => generate_commit(buf, &mut pbft_context.pbft, sequence, source, destination).await,

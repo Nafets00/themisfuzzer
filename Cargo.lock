@@ -711,6 +711,7 @@ name = "themisfuzzer"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "futures-util",
  "rand",
  "serde",
  "themis-core",
