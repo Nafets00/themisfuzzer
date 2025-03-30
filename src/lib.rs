@@ -5,6 +5,7 @@ use context::{setup_pbft, PBFTContext};
 use rand::prelude::*;
 use themis_core::{app::{request, Request, Response}, net::{Message, Raw, Sequenced}, protocol::{Proposal, ProtocolTag}};
 use themis_pbft::messages::*;
+use futures_util::{poll, FutureExt, Stream, StreamExt};
 pub mod context;
 pub mod patch;
 pub mod comp;
@@ -14,6 +15,7 @@ pub mod comp;
 
 async fn generate_pre_prepare(buf: &[u8], pbft: &mut themis_pbft::PBFT, sequence:u64, source:u64, destination:u64) -> () {
     
+    
     let view = pbft.view();
     let bytes = Bytes::copy_from_slice(buf);
     let msg = PrePrepare::new(sequence, view, bytes);
@@ -21,7 +23,7 @@ async fn generate_pre_prepare(buf: &[u8], pbft: &mut themis_pbft::PBFT, sequence
     
     match res {
         Ok(message) => {
-           let _ = pbft.on_message(message).await;
+           let _ = pbft.comms.replicas.send(message).await;
         }
         Err(e) => {
             eprintln!("Cannot pack message: {:?}", e); 
@@ -40,7 +42,7 @@ async fn generate_prepare(buf: &[u8], pbft: &mut themis_pbft::PBFT, sequence:u64
     let res = Message::new(source, destination, msg).pack();
     match res {
         Ok(message) => {
-           let _ = pbft.on_message(message).await;
+            let _ = pbft.comms.replicas.send(message).await;
         }
         Err(e) => {
             eprintln!("Cannot pack message: {:?}", e); 
@@ -57,7 +59,7 @@ async fn generate_commit(buf: &[u8], pbft: &mut themis_pbft::PBFT, sequence:u64,
     let res = Message::new(source, destination, msg).pack();
     match res {
         Ok(message) => {
-           let _ = pbft.on_message(message).await;
+            let _ = pbft.comms.replicas.send(message).await;
         }
         Err(e) => {
             eprintln!("Cannot pack message: {:?}", e); 
@@ -103,11 +105,12 @@ fn generate_nonraw_view_change(buf: &[u8], sequence:u64, curr_view:u64, source:u
 
 async fn generate_new_view(buf: &[u8], pbft: &mut themis_pbft::PBFT, sequence:u64, source:u64, destination:u64) -> () {
 
-    let mut rng = ThreadRng::default();
-
+    
     let view = pbft.view();
     let view_changes = Box::new([generate_nonraw_view_change(buf, sequence, view, source, destination)]);
+
     let pre_prepares  = Vec::new().into();
+
     let res = Message::new(source, destination,NewView::new(view, view_changes, pre_prepares)).pack();
     match res {
         Ok(message) => {
@@ -228,9 +231,8 @@ async fn generate_random_response(buf: &[u8], pbft: &mut themis_pbft::PBFT, sequ
 
 
 
-pub async fn to_fuzz(rnd_var: u64, buf: &[u8], sequence:u64, pbft_context: &mut PBFTContext, replica_context: &mut PBFTContext, source:u64, destination:u64){
+pub async fn to_fuzz(rnd_var: u64, buf: &[u8], sequence:u64, pbft_context: &mut PBFTContext, pbft_context2: &mut PBFTContext, source:u64, destination:u64){
     //println!("rndvar: {}", rnd_var);
-    
     match rnd_var {
         0 => generate_pre_prepare(buf, &mut pbft_context.pbft, sequence, source, destination).await,
         1 => generate_assign(buf, &mut pbft_context.pbft, sequence, source, destination).await,
@@ -243,6 +245,40 @@ pub async fn to_fuzz(rnd_var: u64, buf: &[u8], sequence:u64, pbft_context: &mut 
         8 => generate_random_request(buf, &mut pbft_context.pbft, sequence, source, destination),
         9 => generate_random_response(buf, &mut pbft_context.pbft, sequence, source, destination).await,
         10 => generate_view_change(buf, &mut pbft_context.pbft, sequence, source, destination).await,
-        _ => println!("state of pbft: {:?}", &mut pbft_context.pbft)
+        _ => {}
     };
+
+    let next_msg = pbft_context.r.next().now_or_never();
+            match next_msg {
+                Some(m) => {
+                    match m {
+                        Some(message) =>{
+                            let _ = pbft_context.pbft.on_message(message).await;
+                        }
+                        None => {}
+                    }
+                    
+                }
+                None => {
+                    
+                }
+            }
+    
+    let next_msg = pbft_context2.r.next().now_or_never();
+    match next_msg {
+        Some(m) => {
+            match m {
+                Some(message) =>{
+                    let _ = pbft_context2.pbft.on_message(message).await;
+                }
+                None => {}
+            }
+            
+        }
+        None => {
+            
+        }
+    }
+
+    //println!("{:?}", pbft_context.pbft);
 }

@@ -4,42 +4,26 @@ use rand::prelude::*;
 use themis_patch_core::{app::{Request, Response}, net::Message, protocol::Proposal};
 use themis_patch_pbft::messages::*;
 use themis_patch_pbft::test::PBFTPatchContext;
+use futures_util::{poll, FutureExt, Stream, StreamExt};
 
 
 
-pub async fn generate_pre_prepare(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT, replica:&mut themis_patch_pbft::PBFT, sequence:u64, source:u64, destination:u64) -> () {
+pub async fn generate_pre_prepare(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT, sequence:u64, source:u64, destination:u64) -> () {
     
 
     let view = pbft.view();
     let bytes = Bytes::copy_from_slice(buf);
     let msg = PrePrepare::new(sequence, view, bytes);
     let res = Message::new(source,destination, msg).pack();
-    
-    if sequence%2 == 0{
-    match res {
-            Ok(message) => {
-                
-                let _ = pbft.on_message(message).await;
-            }
-            Err(e) => {
-                eprintln!("Cannot pack message: {:?}", e); 
-                panic!("Error packing message: {:?}", e);
-            }
-        }
-   }
-   else {
     match res {
         Ok(message) => {
-            let _ = replica.on_message(message).await;
+            let _ = pbft.comms.replicas.send(message).await;
         }
         Err(e) => {
             eprintln!("Cannot pack message: {:?}", e); 
             panic!("Error packing message: {:?}", e);
         }
     }
-   }
-    
-    
 }
 
 async fn generate_prepare(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT, sequence:u64, source:u64, destination:u64) -> () {
@@ -51,7 +35,7 @@ async fn generate_prepare(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT, sequen
     let res = Message::new(source, destination, msg).pack();
     match res {
         Ok(message) => {
-           let _ = pbft.on_message(message).await;
+            let _ = pbft.comms.replicas.send(message).await;
         }
         Err(e) => {
             eprintln!("Cannot pack message: {:?}", e); 
@@ -69,7 +53,7 @@ async fn generate_commit(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT, sequenc
     let res = Message::new(source, destination, msg).pack();
     match res {
         Ok(message) => {
-           let _ = pbft.on_message(message).await;
+            let _ = pbft.comms.replicas.send(message).await;
         }
         Err(e) => {
             eprintln!("Cannot pack message: {:?}", e); 
@@ -240,10 +224,10 @@ async fn generate_random_response(buf: &[u8], pbft: &mut themis_patch_pbft::PBFT
 
 
 
-pub async fn to_fuzz_patch(rnd_var:u64, buf: &[u8], sequence:u64, pbft_context: &mut PBFTPatchContext, replica_context: &mut PBFTPatchContext, source:u64, destination:u64){
-    
+pub async fn to_fuzz_patch(rnd_var:u64, buf: &[u8], sequence:u64, pbft_context: &mut PBFTPatchContext, pbft_context2:&mut PBFTPatchContext,source:u64, destination:u64){
+
     match rnd_var {
-        0 => generate_pre_prepare(buf, &mut pbft_context.pbft, &mut replica_context.pbft,sequence, source, destination,).await,
+        0 => generate_pre_prepare(buf, &mut pbft_context.pbft,sequence, source, destination).await,
         1 => generate_assign(buf, &mut pbft_context.pbft, sequence, source, destination).await,
         2 => generate_commit(buf, &mut pbft_context.pbft, sequence, source, destination).await,
         3 => generate_forward(buf,&mut pbft_context.pbft, sequence, source, destination).await,
@@ -254,6 +238,41 @@ pub async fn to_fuzz_patch(rnd_var:u64, buf: &[u8], sequence:u64, pbft_context: 
         8 => generate_random_request(buf, &mut pbft_context.pbft, sequence, source, destination),
         9 => generate_random_response(buf,&mut pbft_context.pbft, sequence, source, destination).await,
         10 => generate_view_change(buf,&mut pbft_context.pbft, sequence, source, destination).await,
-        _ => println!("state of pbft: {:?}", pbft_context.pbft)
+        _ => {}
+
+        
     };
+    
+    let next_msg = pbft_context.r.next().now_or_never();
+            match next_msg {
+                Some(m) => {
+                    match m {
+                        Some(message) =>{
+                            let _ = pbft_context.pbft.on_message(message).await;
+                        }
+                        None => {}
+                    }
+                    
+                }
+                None => {
+                    
+                }
+            }
+    
+        let next_msg = pbft_context2.r.next().now_or_never();
+        match next_msg {
+            Some(m) => {
+                match m {
+                    Some(message) =>{
+                        let _ = pbft_context2.pbft.on_message(message).await;
+                    }
+                    None => {}
+                }
+                
+            }
+            None => {
+                
+            }
+        }
+
 }
