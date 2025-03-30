@@ -1,0 +1,1 @@
+/home/stefan/patches/applied_patches/quorum.rs___85___94___Gemini___themis___150bfa84e0918ee5acff132dc2d5b8881e12789937207ff4d8de98d06c7ec7bf.patch

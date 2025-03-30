@@ -35,7 +35,7 @@ pub fn compare_versions(pbft: &PBFTContext, patch_pbft: &PBFTPatchContext) -> bo
         println!("different ids")
     }
     if normal.low_mark() != patched.low_mark() {
-        println!("normal: {}, patch: {}", normal.low_mark(), patched.low_mark());
+        //println!("normal: {}, patch: {}", normal.low_mark(), patched.low_mark());
         println!("diff low mark")
     }
     if normal.next_sequence() != patched.next_sequence(){
@@ -53,6 +53,6 @@ pub fn compare_versions(pbft: &PBFTContext, patch_pbft: &PBFTPatchContext) -> bo
     if !compare_request(&normal.requests.requests, &patched.requests.requests){
         println!("diff Request store")
     }
-
+    
     false
 }
