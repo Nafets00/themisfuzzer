@@ -7,10 +7,11 @@ use themis_patch_core::net::NetworkMessage;
 use themis_patch_core::comms::*;
 use themis_patch_pbft::{messages::*, requests::RequestEntryPatch, test::{setup_patch_pbft, setup_patch_pbft_backup, PBFTPatchContext}, ViewState};
 use themis_pbft::requests::RequestEntry;
-use themisfuzzer::{context::*, patch::generate_pre_prepare};
+use themisfuzzer::{comp::{self, compare_versions}, context::{self, *}, patch::generate_pre_prepare};
 
 use futures_util::{future::poll_fn, poll, FutureExt, Stream, StreamExt};
 use std::collections;
+
 
 
 
@@ -34,64 +35,112 @@ async fn getfunc(sequence:u64, view:u64, request:Bytes) -> Raw<ProtocolTag<PBFTT
 
 #[tokio::main]
 async fn main() {
-    let rng = ThreadRng::default();
-    let sequence = 1;
-    let view = 0;
-    let mut backup = setup_patch_pbft_backup();
-    let mut pbft = setup_patch_pbft();
+    let mut patch = themis_patch_pbft::test::setup_with_checkpoint_patch(false, 1000);
+    let mut pbft = context::setup_with_checkpoint(false, 1000);
+
     
-  
-            let mut buf = [0u8; 16]; // 16-byte array
-            rand::thread_rng().fill(&mut buf);
-            let slice: &[u8] = &buf;
-         
-            let byte = Bytes::copy_from_slice(slice);
-         
-            let msg = getfunc(sequence, view, byte).await;
-            
+    let mut rng = ThreadRng::default();
 
-            let send = Message::new(1, 0, msg);
-           
-            
-            let res2 = pbft.pbft.comms.replicas.send(send).await;
+    let mut buffer = [0u8; 16]; 
+    let bytes  = Bytes::new();
 
-            let next_msg = pbft.r.next().now_or_never();
-            match next_msg {
-                Some(m) => {
-                    match m {
-                        Some(message) =>{
-                            let _ = pbft.pbft.on_message(message).await;
-                        }
-                        None => {println!("empty")}
-                    }
-                    
-                }
-                None => {
-                    println!("emty1");
-                }
-            }
+    rng.fill(&mut buffer); 
+    println!("emp: {}", &buffer.is_empty());
+    let buf: &[u8] = &buffer;
+    let bytes = Bytes::new();
+    let bytes2 =Bytes::new();
+    let bytes3 =Bytes::new();
+    let bytes4 =Bytes::new();
+    let bytes5 = Bytes::new();
+    let bytes6 =Bytes::new();
 
-            
-            let next_msg2 = backup.r.next().now_or_never();
-            match next_msg2 {
-            Some(m) => {
-                match m {
-                    Some(message) =>{
-                        let _ = backup.pbft.on_message(message).await;
-                    }
-                    None => {println!("empty")}
-                }
-                
-            }
-            None => {
-                println!("emty2");
-            }
-        }
-            
+
+
+    let msg_patch = themis_patch_pbft::messages::PrePrepare::new(1, 0, bytes);
+    let msg_preprep_patch = themis_patch_core::net::Message::new(0,0, msg_patch);
+    let res_patch = msg_preprep_patch.pack();
+    match res_patch{
+        Ok(message) =>{let _ = patch.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+    let msg = themis_pbft::messages::PrePrepare::new(1, 0, bytes2);
+    let msg_preprep = themis_core::net::Message::new(0, 0, msg);
+    let res = msg_preprep.pack();
+    match res{
+        Ok(message) =>{let _ = pbft.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+
+    let msg = themis_patch_pbft::messages::Prepare::new(1, 0, bytes3);
+    let msg_prep_patch = themis_patch_core::net::Message::new(0,0, msg);
+    let res_patch = msg_prep_patch.pack();
+    match res_patch{
+        Ok(message) =>{let _ = patch.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+    let msg = themis_pbft::messages::Prepare::new(1, 0, bytes4);
+    let msg_prep = themis_core::net::Message::new(0, 0, msg);
+    let res = msg_prep.pack();
+    match res{
+        Ok(message) =>{let _ = pbft.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+
+
+    let msg_patch = themis_patch_pbft::messages::Commit::new(1, 0, bytes5);
+    let res_patch = themis_patch_core::net::Message::new(0,0, msg_patch).pack();
+    match res_patch{
+        Ok(message) =>{let _ = patch.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+    let msg = themis_pbft::messages::Commit::new(1, 0, bytes6);
+    let res = themis_core::net::Message::new(0, 0, msg).pack();
+    match res{
+        Ok(message) =>{let _ = pbft.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+
+
+    let checkpoint_proof = Vec::new().into();
+    let msg_box = Box::new([msg_prep_patch]);
+    let pp = themis_patch_pbft::messages::PrepareProof(msg_preprep_patch, msg_box);
+    let box_pp = Box::new([pp]);
+    let msg = themis_patch_pbft::messages::ViewChange::new(1, 0, checkpoint_proof, box_pp);
+    let res = themis_patch_core::net::Message::new(0, 0, msg).pack();
+    match res{
+        Ok(message) =>{let _ = patch.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+    let checkpoint_proof = Vec::new().into();
+    let msg_box = Box::new([msg_prep]);
+    let pp = themis_pbft::messages::PrepareProof(msg_preprep, msg_box);
+    let box_pp = Box::new([pp]);
+    let msg_patch = themis_pbft::messages::ViewChange::new(1, 0, checkpoint_proof, box_pp);
+    let res_patch = themis_core::net::Message::new(0,0, msg_patch).pack();
+    match res_patch{
+        Ok(message) =>{let _ = pbft.pbft.on_message(message).await;}
+        Err(e) =>{println!("err")}
+    }
+
+    compare_versions(&pbft, &patch, buf, 1, 1, 1, 1); 
 
     println!("pbft: {:?}\n\n", pbft.pbft);
-    println!("pbft_backup: {:?}\n\n", backup.pbft);
-    
+    println!("patch: {:?}\n\n", patch.pbft);
 
+
+
+
+    //compare_versions(&pbft, &patch, buf);
+    println!("view{}", pbft.pbft.view());
+    println!("pbft: {:?}\n\n", pbft.pbft.state);
+    println!("patch: {:?}\n\n", patch.pbft.state);
+    
     
 }

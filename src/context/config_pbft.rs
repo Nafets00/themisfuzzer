@@ -69,8 +69,8 @@ impl PBFTConfig {
 impl Default for PBFTConfig {
     fn default() -> Self {
         Self {
-            num_peers: 4,
-            faults: 1,
+            num_peers: 2,
+            faults: 0,
             checkpoint_interval: 1000,
             high_mark_delta: 3000,
             request_timeout: 1000,

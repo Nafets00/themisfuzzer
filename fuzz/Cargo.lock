@@ -246,8 +246,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libafl_libfuzzer"
-version = "0.15.1"
-source = "git+https://github.com/AFLplusplus/LibAFL.git#30946641cdb6a38d3ded44b1d2324a1fd3296c13"
+version = "0.15.2"
+source = "git+https://github.com/AFLplusplus/LibAFL.git#184b69be8e4d00b7b898ed57965937900dd4b64a"
 dependencies = [
  "cc",
  "libfuzzer-sys",

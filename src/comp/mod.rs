@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, process::exit};
 
 use bytes::Bytes;
-use themis_patch_core::{app::{Request, Response}, net::{Message, Raw}, protocol::ProtocolTag};
-use themis_patch_pbft::{messages::*, requests::RequestEntryPatch, test::{setup_patch_pbft, setup_patch_pbft_backup, PBFTPatchContext}, ViewState};
+use themis_patch_pbft::{message_log::OrderingLog, requests::RequestEntryPatch, test::PBFTPatchContext, ViewState};
 use themis_pbft::requests::RequestEntry;
+use tokio::time::error::Elapsed;
 use crate::context::*;
 
 
@@ -17,42 +17,151 @@ fn compare_state(normal:&themis_pbft::ViewState , patched:&ViewState)->bool{
 }
 
 fn compare_request(normal: &HashMap<Bytes,RequestEntry>, patched:&HashMap<Bytes,RequestEntryPatch>)->bool{
-    if  normal.len() == patched.len(){
-         for req in normal.values(){
-            return false;
-         }
-    }
 
+    let normal_values: Vec<_> = normal.values().collect();
+    let patched_values: Vec<_> = patched.values().collect();
+
+    
+    if  normal.len() == patched.len(){
+        'outer: for i in 0..normal_values.len(){
+           for j in 0..patched_values.len(){
+            if (normal_values[i].sequence == patched_values[j].sequence) && (normal_values[i].request.inner.payload == patched_values[j].request.inner.payload) {
+                continue 'outer;
+                }
+            }
+            return false;
+
+        }
+        return true;
+    }
+false
+}
+fn compare_request_batch(normal: &HashMap<Bytes,themis_pbft::Batch>, patched:&HashMap<Bytes,themis_patch_pbft::Batch>)->bool{
+    let normal_values: Vec<_> = normal.values().collect();
+    let patched_values: Vec<_> = patched.values().collect();
+
+    
+    if  normal.len() == patched.len(){
+        'outer: for i in 0..normal_values.len(){
+           for j in 0..patched_values.len(){
+            if (normal_values[i].sequence == patched_values[j].sequence) && ((normal_values[i].state == themis_pbft::requests::BatchState::Open && patched_values[j].state == themis_patch_pbft::requests::BatchState::Open) || (normal_values[i].state == themis_pbft::requests::BatchState::Missing && patched_values[j].state == themis_patch_pbft::requests::BatchState::Missing) ||(normal_values[i].state == themis_pbft::requests::BatchState::Prepared && patched_values[j].state == themis_patch_pbft::requests::BatchState::Prepared)) {
+                continue 'outer;
+                }
+            }
+            println!("nv: {:?}", normal_values);
+            println!("pv: {:?}", patched_values);
+            return false;
+
+        }
+        return true;
+    }
+    print!("outer failure");
+false
+}
+
+fn compare_log(normal: &themis_pbft::message_log::OrderingLog, patched: &themis_patch_pbft::message_log::OrderingLog)->bool{
+    if normal.old_views.len() == patched.old_views.len(){
+        if normal.current_view.len() == patched.current_view.len() {
+            for i in 0..normal.current_view.slots.len()
+            {
+                let x = &normal.current_view.slots[i];
+                match x {
+                    Some(slot) => {
+                        let y = &patched.current_view.slots[i];
+                        match y {
+                            Some(sl) => {
+                                if (sl.state == themis_patch_pbft::message_log::OrderingState::Open && slot.state == themis_pbft::message_log::OrderingState::Open)||(sl.state == themis_patch_pbft::message_log::OrderingState::Prepared && slot.state == themis_pbft::message_log::OrderingState::Prepared)||(sl.state == themis_patch_pbft::message_log::OrderingState::Committed && slot.state == themis_pbft::message_log::OrderingState::Committed){
+                                if  ((sl.commits.len() == slot.commits.len()) && (sl.prepares.len() == slot.prepares.len()) && (sl.pre_prepare.is_some() == slot.pre_prepare.is_some())){
+                               
+                                    continue;
+                                }
+                                else {
+                                    return false
+                                }
+                                
+                            }
+                                else {
+                                
+                                    return false
+                                }
+
+                        }
+                            None=>{return true}
+                        }
+                    }
+
+                    None =>{return true}
+                }
+
+            }
+            return true;
+                
+        }
+    }
+    ;
     false
 }
 
-pub fn compare_versions(pbft: &PBFTContext, patch_pbft: &PBFTPatchContext) -> bool{
+fn compare_checkpoint(normal: &themis_pbft::checkpointing::Checkpointing, patched: &themis_patch_pbft::checkpointing::Checkpointing)->bool{
+    
+    if normal.checkpoints.len() == patched.checkpoints.len(){
+        if normal.checkpoints.keys().eq(patched.checkpoints.keys()){
+            return true
+        }
+        
+    }
+    return false;
+}
+
+pub fn compare_versions(pbft: &PBFTContext, patch_pbft: &PBFTPatchContext, data: &[u8], msgtype: u64, source: u64, destination: u64, view: u64) -> bool{
 
     let normal = &pbft.pbft;
     let patched = &patch_pbft.pbft;
+
+    println!("size: {}", normal.log.old_views.len());
     
     if normal.id() != patched.id() {
-        println!("different ids")
+        println!("different ids");
+        exit(0);
     }
     if normal.low_mark() != patched.low_mark() {
-        //println!("normal: {}, patch: {}", normal.low_mark(), patched.low_mark());
-        println!("diff low mark")
+        println!("diff low mark");
+        exit(0);
     }
     if normal.next_sequence() != patched.next_sequence(){
-        println!("diff seq")
+        println!("diff seq");
+        exit(0);
     }
     if normal.last_commit != patched.last_commit {
-        println!("diff commits")
+        println!("diff commits");
+        exit(0);
     }
     if normal.view() != patched.view() {
-        println!("diff view")
+        println!("diff views, {:?}, {:?}, {:?}", data, &normal.view(), &patched.view());
+        exit(0);
     }
     if !compare_state(&normal.state, &patched.state) {
-        println!("diff states")
+        
+        println!("diff states, {:?}, {:?}, {:?}", data, &normal.state, &patched.state);
+        exit(0);
+
     }
     if !compare_request(&normal.requests.requests, &patched.requests.requests){
-        println!("diff Request store")
+        println!("diff requests");
+        exit(0);
     }
-    
+    if !compare_request_batch(&normal.requests.instances, &patched.requests.instances){
+        println!("diff request");
+        exit(0);
+    }
+    if !compare_log(&normal.log, &patched.log){
+        println!("diff logs");
+        exit(0);
+    }
+    if !compare_checkpoint(&normal.checkpointing, &patched.checkpointing){
+        println!("diff checkpoints");
+        exit(0);
+    }
+
     false
 }
