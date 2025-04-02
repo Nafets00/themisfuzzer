@@ -1,11 +1,8 @@
 use bytes::Bytes;
-
-use rand::prelude::*;
-use themis_core::app::request;
-use themis_patch_core::{app::{Request, Response}, net::{Message, NetworkMessage, Raw, Tag}, protocol::{Proposal, ProtocolTag}};
-use themis_patch_pbft::{message_log::Check, messages::*};
+use themis_patch_core::{app::{Request, Response}, net::{Message}, protocol::{Proposal}};
+use themis_patch_pbft::{messages::*};
 use themis_patch_pbft::test::PBFTPatchContext;
-use futures_util::{poll, FutureExt, Stream, StreamExt};
+use futures_util::{FutureExt, StreamExt};
 
 
 

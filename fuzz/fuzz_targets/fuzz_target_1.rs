@@ -91,7 +91,7 @@ fuzz_target!(|data: &[u8]| {
 
         
 
-        /* 
+        /* resets the log every 60 seconds
         if elapsed.as_secs()%60 == 0{
             pbft_context.pbft.log = themis_pbft::message_log::OrderingLog::new(pbft_context.pbft.config.high_mark_delta);
             pbft_patch_context.pbft.log = themis_patch_pbft::message_log::OrderingLog::new(pbft_patch_context.pbft.config.high_mark_delta);
@@ -112,7 +112,6 @@ fuzz_target!(|data: &[u8]| {
         let mut seq = SEQ.lock().unwrap();
         let mut sequence = seq.clone();
         let mut rng = rand::thread_rng();
-        let mut is_correct = false;
 
         if rng.gen_bool(0.5){
             sequence = rng.gen_range(0..=sequence);

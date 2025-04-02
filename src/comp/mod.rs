@@ -1,13 +1,13 @@
 use std::{collections::HashMap, process::exit};
 
 use bytes::Bytes;
-use themis_patch_pbft::{message_log::OrderingLog, requests::RequestEntryPatch, test::PBFTPatchContext, ViewState};
+use themis_patch_pbft::{requests::RequestEntryPatch, test::PBFTPatchContext, ViewState};
 use themis_pbft::requests::RequestEntry;
-use tokio::time::error::Elapsed;
 use crate::context::*;
+use crate::logger::log_on_comp;
 
 
-
+//works slightly different then in the thesis as it will kill the fuzzer if a differance has been found instead of resetting the state logging is done via print
 
 fn compare_state(normal:&themis_pbft::ViewState , patched:&ViewState)->bool{
     if (normal.is_regular() && patched.is_regular()) || (normal.is_view_change() && patched.is_view_change()){
@@ -113,53 +113,51 @@ fn compare_checkpoint(normal: &themis_pbft::checkpointing::Checkpointing, patche
     return false;
 }
 
-pub fn compare_versions(pbft: &PBFTContext, patch_pbft: &PBFTPatchContext, data: &[u8], msgtype: u64, source: u64, destination: u64, view: u64) -> bool{
+pub fn compare_versions(pbft: &PBFTContext, patch_pbft: &PBFTPatchContext, data: &[u8], message_type: u64, source: u64, destination: u64, view: u64) -> bool{
 
     let normal = &pbft.pbft;
     let patched = &patch_pbft.pbft;
-
-    println!("size: {}", normal.log.old_views.len());
     
     if normal.id() != patched.id() {
-        println!("different ids");
+        log_on_comp(message_type, source, destination, view, "id");        
         exit(0);
     }
     if normal.low_mark() != patched.low_mark() {
-        println!("diff low mark");
+        log_on_comp(message_type, source, destination, view, "low_mark");        
         exit(0);
     }
     if normal.next_sequence() != patched.next_sequence(){
-        println!("diff seq");
+        log_on_comp(message_type, source, destination, view, "next_sequence");        
         exit(0);
     }
     if normal.last_commit != patched.last_commit {
-        println!("diff commits");
+        log_on_comp(message_type, source, destination, view, "last_commit");        
         exit(0);
     }
     if normal.view() != patched.view() {
-        println!("diff views, {:?}, {:?}, {:?}", data, &normal.view(), &patched.view());
+        log_on_comp(message_type, source, destination, view, "view");        
         exit(0);
     }
     if !compare_state(&normal.state, &patched.state) {
         
-        println!("diff states, {:?}, {:?}, {:?}", data, &normal.state, &patched.state);
+        log_on_comp(message_type, source, destination, view, "state");        
         exit(0);
 
     }
     if !compare_request(&normal.requests.requests, &patched.requests.requests){
-        println!("diff requests");
-        exit(0);
+        log_on_comp(message_type, source, destination, view, "requests");       
+         exit(0);
     }
     if !compare_request_batch(&normal.requests.instances, &patched.requests.instances){
-        println!("diff request");
+        log_on_comp(message_type, source, destination, view, "instances");        
         exit(0);
     }
     if !compare_log(&normal.log, &patched.log){
-        println!("diff logs");
+        log_on_comp(message_type, source, destination, view, "log");        
         exit(0);
     }
     if !compare_checkpoint(&normal.checkpointing, &patched.checkpointing){
-        println!("diff checkpoints");
+        log_on_comp(message_type, source, destination, view, "checkpointing");
         exit(0);
     }
 

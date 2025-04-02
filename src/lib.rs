@@ -1,12 +1,8 @@
-use std::thread::Thread;
-
 use bytes::Bytes;
-use context::{setup_pbft, PBFTContext};
-use rand::{distributions::DistString, prelude::*};
-use serde::de;
-use themis_core::{app::{request, Request, Response}, net::{Message, Raw, Sequenced}, protocol::{Proposal, ProtocolTag}};
+use context::PBFTContext;
+use themis_core::{app::{ Request, Response}, net::{Message}, protocol::{Proposal}};
 use themis_pbft::messages::*;
-use futures_util::{poll, FutureExt, Stream, StreamExt};
+use futures_util::{FutureExt, StreamExt};
 pub mod context;
 pub mod patch;
 pub mod comp;

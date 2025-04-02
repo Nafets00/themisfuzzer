@@ -8,7 +8,7 @@ fn save_last_applied_patch(path: &PathBuf) {
     }
 }
 
-fn load_last_applied_patch() -> Option<PathBuf> {
+pub fn load_last_applied_patch() -> Option<PathBuf> {
     if let Ok(saved_path) = fs::read_to_string(LAST_PATCH_PATH_FILE) {
         let trimmed = saved_path.trim();
         if !trimmed.is_empty() {
@@ -39,7 +39,7 @@ fn get_first_file_path(dir_path: &str) -> Option<PathBuf> {
 }
 
 fn restart_fuzzing() {
-    let status = Command::new("sh")
+    let _status = Command::new("sh")
     .arg("-c")
     .arg("cargo fuzz run fuzz_target_1")
     .status()
