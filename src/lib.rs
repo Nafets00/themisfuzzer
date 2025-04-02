@@ -308,7 +308,6 @@ async fn generate_correct_seq(buf: &[u8], view:u64,pbft: &mut themis_pbft::PBFT,
 
 
 pub async fn to_fuzz(rnd_var: u64, buf: &[u8], view:u64,sequence:u64, pbft_context: &mut PBFTContext, pbft_context2: &mut PBFTContext, source:u64, destination:u64)->bool{
-    //println!("rndvar: {}", rnd_var);
     let mut ret = false;
     match rnd_var {
         0 => ret = generate_pre_prepare(buf, view,&mut pbft_context.pbft, sequence, source, destination).await,
@@ -359,5 +358,4 @@ pub async fn to_fuzz(rnd_var: u64, buf: &[u8], view:u64,sequence:u64, pbft_conte
         }
     }
     return ret;
-    //println!("{:?}", pbft_context.pbft);
 }

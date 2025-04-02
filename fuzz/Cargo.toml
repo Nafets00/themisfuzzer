@@ -8,6 +8,7 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
+#https://github.com/Nafets00/LibAFL.git
 libfuzzer-sys = { git = "https://github.com/AFLplusplus/LibAFL.git", features = [], package = "libafl_libfuzzer" }
 themis-pbft = {path = "/home/stefan/themis/themis-pbft"}
 themis-patch-pbft = {path = "/home/stefan/ThemisPatch/themis-patch-pbft"}

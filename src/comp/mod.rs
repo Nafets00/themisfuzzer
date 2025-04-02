@@ -48,8 +48,6 @@ fn compare_request_batch(normal: &HashMap<Bytes,themis_pbft::Batch>, patched:&Ha
                 continue 'outer;
                 }
             }
-            println!("nv: {:?}", normal_values);
-            println!("pv: {:?}", patched_values);
             return false;
 
         }

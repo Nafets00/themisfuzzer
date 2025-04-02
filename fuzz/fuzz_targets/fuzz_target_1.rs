@@ -106,7 +106,6 @@ fuzz_target!(|data: &[u8]| {
         let destination:u64 = data[2].into();
         let view:u64 = data[3].into();
         let mut use_replica = false;
-        //println!("type: {}", msg_type);
 
 
         let mut seq = SEQ.lock().unwrap();
